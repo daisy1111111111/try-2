@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RAG System: Multi-file and LLM Integration</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+  </head>
+  <body>
+    <div class="container mt-5">
+      <h1 class="text-center">📄 RAG System: Multi-file and LLM Integration</h1>
+      <p class="text-center">
+        Efficiently retrieve and generate answers using PDFs, Word files, TXT
+        files, or URLs
+      </p>
+
+      <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item">
+          <a
+            class="nav-link active"
+            id="rag-tab"
+            data-toggle="tab"
+            href="#rag"
+            role="tab"
+            aria-controls="rag"
+            aria-selected="true"
+            >RAG System</a
+          >
+        </li>
+        <li class="nav-item">
+          <a
+            class="nav-link"
+            id="chat-tab"
+            data-toggle="tab"
+            href="#chat"
+            role="tab"
+            aria-controls="chat"
+            aria-selected="false"
+            >Direct LLM Chat</a
+          >
+        </li>
+      </ul>
+
+      <div class="tab-content" id="myTabContent">
+        <div
+          class="tab-pane fade show active"
+          id="rag"
+          role="tabpanel"
+          aria-labelledby="rag-tab"
+        >
+          <form id="ragForm" method="post" enctype="multipart/form-data">
+            <div class="form-group mt-4">
+              <label for="inputType">Choose input type:</label>
+              <select
+                class="form-control"
+                id="inputType"
+                name="input_type"
+                required
+              >
+                <option value="PDFs">PDFs</option>
+                <option value="Word Files">Word Files</option>
+                <option value="TXT Files">TXT Files</option>
+                <option value="URLs">URLs</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="fileUpload" style="display: none">
+              <label for="files">Upload files:</label>
+              <input
+                type="file"
+                class="form-control-file"
+                id="files"
+                name="files"
+                multiple
+              />
+            </div>
+
+            <div class="form-group" id="urlInput" style="display: none">
+              <label for="urls">Enter URLs (one per line):</label>
+              <textarea
+                class="form-control"
+                id="urls"
+                name="urls"
+                rows="3"
+              ></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+              Process Documents
+            </button>
+          </form>
+
+          <form id="questionForm" class="mt-4" style="display: none">
+            <div class="form-group">
+              <label for="query">Enter your query:</label>
+              <input
+                type="text"
+                class="form-control"
+                id="query"
+                name="query"
+                required
+              />
+            </div>
+            <button type="submit" class="btn btn-primary">Get Answer</button>
+          </form>
+
+          <div id="ragResponse" class="mt-4" style="display: none">
+            <h5>Relevant Chunks:</h5>
+            <ul id="relevantChunks"></ul>
+            <h5>Generated Answer:</h5>
+            <p id="generatedAnswer"></p>
+          </div>
+        </div>
+
+        <div
+          class="tab-pane fade"
+          id="chat"
+          role="tabpanel"
+          aria-labelledby="chat-tab"
+        >
+          <form id="chatForm" method="post">
+            <div class="form-group mt-4">
+              <label for="message">Enter your message:</label>
+              <textarea
+                class="form-control"
+                id="message"
+                name="message"
+                rows="3"
+                required
+              ></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Send</button>
+          </form>
+
+          <div id="chatResponse" class="mt-4" style="display: none">
+            <h5>LLM Response:</h5>
+            <p id="response"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+      $(document).ready(function () {
+        $("#inputType").on("change", function () {
+          var inputType = $(this).val();
+          if (inputType === "URLs") {
+            $("#urlInput").show();
+            $("#fileUpload").hide();
+          } else {
+            $("#urlInput").hide();
+            $("#fileUpload").show();
+          }
+        });
+
+        $("#ragForm").on("submit", function (e) {
+          e.preventDefault();
+
+          var formData = new FormData(this);
+
+          $.ajax({
+            url: "/process_documents",
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+              alert(response.message);
+              $("#questionForm").show();
+            },
+            error: function (xhr, status, error) {
+              alert("Error: " + xhr.responseJSON.error);
+            },
+          });
+        });
+
+        $("#questionForm").on("submit", function (e) {
+          e.preventDefault();
+          var queryData = $("#questionForm").serialize();
+
+          $.ajax({
+            url: "/answer_question",
+            type: "POST",
+            data: queryData,
+            success: function (response) {
+              $("#ragResponse").show();
+              $("#relevantChunks").empty();
+              response.relevant_chunks.forEach(function (chunk) {
+                $("#relevantChunks").append("<li>" + chunk + "</li>");
+              });
+              $("#generatedAnswer").html(response.answer);
+            },
+            error: function (xhr, status, error) {
+              alert("Error: " + xhr.responseJSON.error);
+            },
+          });
+        });
+
+        $("#chatForm").on("submit", function (e) {
+          e.preventDefault();
+
+          var formData = $(this).serialize();
+
+          $.ajax({
+            url: "/chat",
+            type: "POST",
+            data: formData,
+            success: function (response) {
+              $("#chatResponse").show();
+              $("#response").html(response.response);
+            },
+            error: function (xhr, status, error) {
+              alert("Error: " + xhr.responseJSON.error);
+            },
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

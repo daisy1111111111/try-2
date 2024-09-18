@@ -1,0 +1,15 @@
+Flask
+Gunicorn
+Flask-Cors
+pypdfium2
+requests
+beautifulsoup4
+sentence-transformers
+faiss-cpu
+numpy
+validators
+docx2txt
+langchain
+langchain-groq
+python-dotenv
+better-profanity
